@@ -1,38 +1,36 @@
-# s2i-tomcat-git
 FROM openshift/base-centos7
 
-# TODO: Put the maintainer name in the image metadata
-# LABEL maintainer="Your Name <your@email.com>"
+MAINTAINER Tobias Brunner <tobias.brunner@vshn.ch>
 
-# TODO: Rename the builder environment variable to inform users about application you provide them
-# ENV BUILDER_VERSION 1.0
+ENV MAVEN_VERSION=3.5.4
 
-# TODO: Set labels used in OpenShift to describe the builder image
-#LABEL io.k8s.description="Platform for building xyz" \
-#      io.k8s.display-name="builder x.y.z" \
-#      io.openshift.expose-services="8080:http" \
-#      io.openshift.tags="builder,x.y.z,etc."
+# Docker Image Metadata
+LABEL io.k8s.description="Platform for building (Maven) and running plain Java applications" \
+      io.k8s.display-name="Java Applications" \
+      io.openshift.tags="builder,java,maven" \
+      io.openshift.expose-services="8080" \
+      org.jboss.deployments-dir="/deployments"
 
-# TODO: Install required packages here:
-# RUN yum install -y ... && yum clean all -y
-RUN yum install -y rubygems && yum clean all -y
-RUN gem install asdf
+# Install Java, Git
+RUN INSTALL_PKGS="java-1.8.0-openjdk java-1.8.0-openjdk-devel git" && \
+    yum install -y $INSTALL_PKGS && \
+    rpm -V $INSTALL_PKGS && \
+    yum clean all -y && \
+    mkdir -p /opt/s2i/destination
 
-# TODO (optional): Copy the builder files into /opt/app-root
-# COPY ./<builder_folder>/ /opt/app-root/
+# Install Maven
+RUN wget -q http://www-eu.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz && \
+    mkdir /opt/maven && \
+    tar xzf apache-maven-${MAVEN_VERSION}-bin.tar.gz -C /opt/maven && \
+    rm apache-maven-${MAVEN_VERSION}-bin.tar.gz && \
+    ln -s /opt/maven/apache-maven-${MAVEN_VERSION}/bin/mvn /usr/local/bin/mvn
 
-# TODO: Copy the S2I scripts to /usr/libexec/s2i, since openshift/base-centos7 image
-# sets io.openshift.s2i.scripts-url label that way, or update that label
+# S2I scripts
 COPY ./s2i/bin/ /usr/libexec/s2i
 
-# TODO: Drop the root user and make the content of /opt/app-root owned by user 1001
-# RUN chown -R 1001:1001 /opt/app-root
-
-# This default user is created in the openshift/base-centos7 image
+RUN chown -R 1001:1001 /opt/app-root
 USER 1001
 
-# TODO: Set the default port for applications built using this image
-# EXPOSE 8080
+EXPOSE 8080
 
-# TODO: Set the default CMD for the image
-# CMD ["/usr/libexec/s2i/usage"]
+CMD ["/usr/libexec/s2i/usage"]
